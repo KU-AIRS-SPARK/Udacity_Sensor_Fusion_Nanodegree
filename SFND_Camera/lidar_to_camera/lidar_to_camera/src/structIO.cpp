@@ -4,6 +4,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "structIO.hpp"
 
+#include <pcl/io/pcd_io.h>//NR
+#include <pcl/point_types.h>//NR
+
 using namespace std;
 
 
@@ -58,8 +61,27 @@ void writeLidarPts(std::vector<LidarPoint> &input, const char* fileName)
 
 void readLidarPts(const char* fileName, std::vector<LidarPoint> &output)
 {
-    std::ifstream in(fileName);
-    read_pod_vector(in, output);
+    //std::ifstream in(fileName);
+    //read_pod_vector(in, output);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+
+    if (pcl::io::loadPCDFile<pcl::PointXYZ> (fileName, *cloud) == -1) //* load the file
+    {
+        PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
+        return;
+    }
+    
+    int i=0;
+    for (const auto& point: *cloud) {
+        output.push_back(LidarPoint());
+        output.at(i).x = point.x;//z
+        output.at(i).y = point.y;//x
+        output.at(i).z = point.z;//y
+
+        i++;
+    }
+                  
 }
 
 

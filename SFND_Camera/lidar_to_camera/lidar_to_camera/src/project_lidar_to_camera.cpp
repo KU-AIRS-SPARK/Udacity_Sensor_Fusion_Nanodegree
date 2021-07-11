@@ -9,6 +9,7 @@
 using namespace std;
 
 void loadCalibrationData(cv::Mat& P_rect_00, cv::Mat& R_rect_00, cv::Mat& RT) {
+  
   RT.at<double>(0, 0) = 7.533745e-03;
   RT.at<double>(0, 1) = -9.999714e-01;
   RT.at<double>(0, 2) = -6.166020e-04;
@@ -21,6 +22,21 @@ void loadCalibrationData(cv::Mat& P_rect_00, cv::Mat& R_rect_00, cv::Mat& RT) {
   RT.at<double>(2, 1) = 7.523790e-03;
   RT.at<double>(2, 2) = 1.480755e-02;
   RT.at<double>(2, 3) = -2.717806e-01;
+  
+  /*
+  RT.at<double>(0, 0) = 2.220446049250e-16;
+  RT.at<double>(0, 1) = 0.000000000000e+00;
+  RT.at<double>(0, 2) = 1.000000000000e+00;
+  RT.at<double>(0, 3) = -1.000000000000e+00;
+  RT.at<double>(1, 0) = -1.679200977087e-01;
+  RT.at<double>(1, 1) = -1.000000000000e+00;
+  RT.at<double>(1, 2) = 2.220446049250e-16;
+  RT.at<double>(1, 3) = 1.232595164408e-32;
+  RT.at<double>(2, 0) = 2.220446049250e-16;
+  RT.at<double>(2, 1) = -0.000000000000e+00;
+  RT.at<double>(2, 2) = -2.220446049250e-16;
+  RT.at<double>(2, 3) = 6.119999885559e-01;*/
+  
   RT.at<double>(3, 0) = 0.0;
   RT.at<double>(3, 1) = 0.0;
   RT.at<double>(3, 2) = 0.0;
@@ -37,6 +53,7 @@ void loadCalibrationData(cv::Mat& P_rect_00, cv::Mat& R_rect_00, cv::Mat& RT) {
   R_rect_00.at<double>(2, 0) = 7.402527e-03;
   R_rect_00.at<double>(2, 1) = 4.351614e-03;
   R_rect_00.at<double>(2, 2) = 9.999631e-01;
+
   R_rect_00.at<double>(2, 3) = 0.0;
   R_rect_00.at<double>(3, 0) = 0;
   R_rect_00.at<double>(3, 1) = 0;
@@ -59,11 +76,12 @@ void loadCalibrationData(cv::Mat& P_rect_00, cv::Mat& R_rect_00, cv::Mat& RT) {
 
 void projectLidarToCamera2() {
   // load image from file
-  cv::Mat img = cv::imread("../images/0000000000.png");
+  //cv::Mat img = cv::imread("../images/0000000000.png");
+  cv::Mat img = cv::imread("../test_data/camera.png");
 
   // load Lidar points from file
   std::vector<LidarPoint> lidarPoints;
-  readLidarPts("../dat/C51_LidarPts_0000.dat", lidarPoints);
+  readLidarPts("../test_data/lidar.pcd", lidarPoints);
 
   // store calibration data in OpenCV matrices
   cv::Mat P_rect_00(
@@ -87,8 +105,8 @@ void projectLidarToCamera2() {
 
   // Added for ensuring the LiDAR points that get visualised are those
   // we can actually see in the camera plane
-  const float maxX = 25.0f, maxY = 6.0f, minZ = -1.4f, minR = 0.01f;
-  ;
+  const float maxX = 25.0f, maxY = 6.0f, minZ = -1.4f, minR = 0.01f;//x->25, y->6, z->-1.4,
+  
   for (auto it = lidarPoints.begin(); it != lidarPoints.end(); ++it) {
     // Check to be sure this is a LiDAR point we actually want to look at
     // If any of the checks below are true, skip
@@ -98,7 +116,7 @@ void projectLidarToCamera2() {
     // Check #4 - If the point is on the road
     // Check #5 - If the reflectivity is low (low reliability)
     if (it->x < 0.0f || it->x > maxX || std::abs(it->y) > maxY ||
-        it->z < minZ || it->r < minR) {
+        it->z < minZ) {//|| it->r < minR
       continue;
     }
     // 1. Convert current Lidar point into homogeneous coordinates and store it in the 4D variable X.
