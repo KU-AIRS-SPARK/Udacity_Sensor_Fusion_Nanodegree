@@ -76,7 +76,7 @@ void readLidarPts(const char* fileName, std::vector<LidarPoint> &output)
     for (const auto& point: *cloud) {
         output.push_back(LidarPoint());
         output.at(i).x = point.x;//z
-        output.at(i).y = point.y;//x
+        output.at(i).y = point.y;//-x
         output.at(i).z = point.z;//y
 
         i++;
