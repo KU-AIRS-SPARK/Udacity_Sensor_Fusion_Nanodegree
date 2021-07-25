@@ -158,6 +158,7 @@ void projectLidarToCamera2() {
   cv::waitKey(0);  // wait for key to be pressed
 }
 
-int main() {
-  projectLidarToCamera2();
+int main()
+{
+    projectLidarToCamera2();
 }
