@@ -4,6 +4,7 @@
 #include <iostream>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <pcl/common/common.h>
 #include <pcl/io/pcd_io.h>    //NR
 #include <pcl/point_types.h>  //NR
 
@@ -66,11 +67,23 @@ void readLidarPts(const char* fileName, std::vector<LidarPoint>& output) {
   for (const auto& point : *cloud) {
     output.push_back(LidarPoint());
     output.at(i).x = point.x;  //z
-    output.at(i).y = point.y;  //-x
-    output.at(i).z = point.z;  //y
+    output.at(i).y = point.y;
+    output.at(i).z = point.z;
 
     i++;
   }
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_converted(new pcl::PointCloud<pcl::PointXYZ>);
+  for(const auto& point: output){
+    pcl::PointXYZ pointConvert = pcl::PointXYZ();
+    pointConvert.x = point.y;
+    pointConvert.y = point.z;
+    pointConvert.z = point.x;
+    cloud_converted->push_back(pointConvert);
+  }
+
+  pcl::io::savePCDFileASCII("test_pcd.pcd", *cloud_converted);
+  
 }
 
 void writeKeypoints(std::vector<cv::KeyPoint>& input, const char* fileName) {
