@@ -10,7 +10,7 @@ using namespace std;
 
 void showLidarTopview() {
   std::vector<LidarPoint> lidarPoints;
-  readLidarPts("../test_data/lidar.pcd", lidarPoints);
+  readLidarPts("../test_data/lidar_new.pcd", lidarPoints);
 
   cv::Size worldSize(10.0, 20.0);  // width and height of sensor field in m
   cv::Size imageSize(1000, 2000);  // corresponding top view image in pixel

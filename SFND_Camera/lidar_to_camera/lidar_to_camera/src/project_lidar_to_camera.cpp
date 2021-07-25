@@ -3,32 +3,53 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <cmath>
 
 #include "structIO.hpp"
 
 using namespace std;
-int W = 1920;
-int H = 1080;
 
-void loadCalibrationData(cv::Mat& L, cv::Mat& C, cv::Mat& Tc, double& CONVERSION_CONSTANT_X, double& CONVERSION_CONSTANT_Y) {
+int W = 640;
+int H = 480;
 
-  /*
-  double HORIZONTAL_FOV = 79.0;
-  double VERTICAL_FOV = 50.0;
-  double CONVERSION_CONSTANT_X = (W/2)*(1+(1/(tan(HORIZONTAL_FOV/2))));
-  double CONVERSION_CONSTANT_Y = (H/2)*(1+(1/(tan(VERTICAL_FOV/2))));*/
+double HORIZONTAL_FOV = 47.9440551;
+double VERTICAL_FOV = 36.7129106;
+//double OFFSET_COEFF = 0.1;
+double OFFSET_X = 336.20585 - W/2;
+double OFFSET_Y = 264.25822 - H/2;
 
-  CONVERSION_CONSTANT_X = 1164.57312393;
-  CONVERSION_CONSTANT_Y = 1158.03373708;
+double CONVERSION_CONSTANT_X = (W/2)*(1/(tan((HORIZONTAL_FOV/2)*(M_PI/180))));
+double CONVERSION_CONSTANT_Y = (H/2)*(1/(tan((VERTICAL_FOV/2)*(M_PI/180))));
 
-  L.at<double>(0, 0) = -0.3679201;
-  L.at<double>(1, 0) = -0.0;
-  L.at<double>(2, 0) = 2.312;
+void loadIntrinsicData(cv::Mat& camera_matrix, cv::Mat& dist_coefficients) {
 
-  C.at<double>(0, 0) = -0.2;
-  C.at<double>(1, 0) = -0.0;
-  C.at<double>(2, 0) = 1.7;
+  camera_matrix.at<double>(0, 0) = 719.67715;
+  camera_matrix.at<double>(0, 1) = 0.0;
+  camera_matrix.at<double>(0, 2) = 336.20585;
+  camera_matrix.at<double>(1, 0) = 0.0;
+  camera_matrix.at<double>(1, 1) = 723.3015;
+  camera_matrix.at<double>(1, 2) = 264.25822;
+  camera_matrix.at<double>(2, 0) = 0.0;
+  camera_matrix.at<double>(2, 1) = 0.0;
+  camera_matrix.at<double>(2, 2) = 1.0;
+
+  dist_coefficients.at<double>(0,0) = 0.065220;
+  dist_coefficients.at<double>(0,1) = -0.013585;
+  dist_coefficients.at<double>(0,2) = 0.010870;
+  dist_coefficients.at<double>(0,3) = 0.001598;
+  dist_coefficients.at<double>(0,4) = 0.000000;
+}
+
+void loadExtrinsicData(cv::Mat& L, cv::Mat& C, cv::Mat& Tc) {
+
+  L.at<double>(0, 0) = 0.215;
+  L.at<double>(1, 0) = 0.04;
+  L.at<double>(2, 0) = 0.19;
+
+  C.at<double>(0, 0) = 0.4135;
+  C.at<double>(1, 0) = 0.0;
+  C.at<double>(2, 0) = 0.0283;
 
   Tc.at<double>(0, 0) = 0.0;
   Tc.at<double>(0, 1) = -1.0;
@@ -44,12 +65,26 @@ void loadCalibrationData(cv::Mat& L, cv::Mat& C, cv::Mat& Tc, double& CONVERSION
 
 void projectLidarToCamera2() {
   // load image from file
-  //cv::Mat img = cv::imread("../images/0000000000.png");
-  cv::Mat img = cv::imread("../test_data/camera_new.png");
+  cv::Mat img = cv::imread("../test_data/test_with_durak.jpg");
+  cv::Size imageSize(cv::Size(img.cols, img.rows));
+
+  cv::Mat camera_matrix(
+    3, 3,
+    cv::DataType<double>::type);
+  cv::Mat dist_coefficients(
+    1, 5,
+    cv::DataType<double>::type);
+
+  loadIntrinsicData(camera_matrix, dist_coefficients);
+
+  cv::Mat undistorted_img, new_camera_matrix;
+  new_camera_matrix = cv::getOptimalNewCameraMatrix(camera_matrix, dist_coefficients, imageSize, 1, imageSize, 0);
+
+  cv::undistort(img, undistorted_img, new_camera_matrix, dist_coefficients, new_camera_matrix);
 
   // load Lidar points from file
   std::vector<LidarPoint> lidarPoints;
-  readLidarPts("../test_data/lidar_new.pcd", lidarPoints);
+  readLidarPts("../test_data/test_with_durak.pcd", lidarPoints);
 
   // store calibration data in OpenCV matrices
   cv::Mat L(
@@ -62,14 +97,11 @@ void projectLidarToCamera2() {
   cv::Mat Tc(
       3, 3,
       cv::DataType<double>::type);  // rotation matrix and translation vector
-
-  double CONVERSION_CONSTANT_X;
-  double CONVERSION_CONSTANT_Y;
-
-  loadCalibrationData(L, C, Tc, CONVERSION_CONSTANT_X, CONVERSION_CONSTANT_Y);
+      
+  loadExtrinsicData(L, C, Tc);
 
   // TODO: project lidar points
-  cv::Mat visImg = img.clone();
+  cv::Mat visImg = undistorted_img.clone();
   cv::Mat overlay = visImg.clone();
 
   cv::Mat Cam(3, 1, cv::DataType<double>::type);
@@ -94,7 +126,6 @@ void projectLidarToCamera2() {
       continue;
     }
     // 1. Convert current Lidar point into homogeneous coordinates and store it in the 4D variable X.
-    cout<<it->x<<" "<<it->y<<" "<<it->z<<endl;
     X.at<double>(0, 0) = it->x;
     X.at<double>(1, 0) = it->y;
     X.at<double>(2, 0) = it->z;
@@ -102,15 +133,17 @@ void projectLidarToCamera2() {
     // 2. Then, apply the projection equation as detailed in lesson 5.1 to map X onto the image plane of the camera.
     // Store the result in Y.
     Cam = Tc*(X + (L-C));
+    //Cam.at<double>(0,0) += (OFFSET_X + W/2)*0.001;
+    //Cam.at<double>(1,0) -= (OFFSET_Y + H/2)*0.001;
 
-    Y.at<double>(0,0) = (int) (W/2 + CONVERSION_CONSTANT_X*(Cam.at<double>(0,0)/Cam.at<double>(2,0)));
-    Y.at<double>(1,0) = (int) (H/2 + CONVERSION_CONSTANT_Y*(Cam.at<double>(1,0)/Cam.at<double>(2,0)));
+    Y.at<double>(0,0) = (int) (W/2 + CONVERSION_CONSTANT_X*(Cam.at<double>(0,0)/Cam.at<double>(2,0)) + OFFSET_X);
+    Y.at<double>(1,0) = (int) (H/2 + CONVERSION_CONSTANT_Y*(Cam.at<double>(1,0)/Cam.at<double>(2,0)) - OFFSET_Y);
 
     // 3. Once this is done, transform Y back into Euclidean coordinates and store the result in the variable pt.
     cv::Point pt(Y.at<double>(0,0), Y.at<double>(1,0));
 
     float val = it->x;
-    float maxVal = 20.0;
+    float maxVal = 10.0;
     int red = min(255, (int)(255 * abs((val - maxVal) / maxVal)));
     int green = min(255, (int)(255 * (1 - abs((val - maxVal) / maxVal))));
     cv::circle(overlay, pt, 5, cv::Scalar(0, green, red), -1);
